@@ -10,13 +10,19 @@
         "source": "https://github.com/tibor-src/xai-sdk-laravel"
     },
     "require": {
-        "php": ">=8.2",
-        "illuminate/support": "^11.0 || ^12.0 || ^13.0",
+        "php": "^8.2.0",
+        "illuminate/support": "^11.48.0 || ^12.56.0 || ^13.23.0",
         "tibor-src/xai-sdk-php": "^0.2.1"
     },
+    "conflict": {
+        "laravel/framework": "<11.48.0 || >=14.0.0"
+    },
     "require-dev": {
-        "orchestra/testbench": "^11.3",
-        "pestphp/pest": "^4.0"
+        "larastan/larastan": "^3.10.0",
+        "laravel/pint": "^1.30.3",
+        "orchestra/testbench": "^9.12.0 || ^10.8.0 || ^11.3.0",
+        "pestphp/pest": "^3.8.5 || ^4.7.5",
+        "pestphp/pest-plugin-type-coverage": "^3.0 || ^4.0"
     },
     "autoload": {
         "psr-4": {
@@ -36,13 +42,25 @@
         }
     },
     "scripts": {
-        "test": "pest"
+        "lint": "pint -v",
+        "test:lint": "pint --test -v",
+        "test:types": "phpstan analyse --ansi",
+        "test:type-coverage": "pest --type-coverage --min=100 --colors=always",
+        "test:unit": "pest --colors=always",
+        "test": [
+            "@test:lint",
+            "@test:types",
+            "@test:type-coverage",
+            "@test:unit"
+        ]
     },
     "config": {
+        "preferred-install": "dist",
         "sort-packages": true,
         "allow-plugins": {
             "pestphp/pest-plugin": true
         }
     },
-    "minimum-stability": "stable"
+    "minimum-stability": "stable",
+    "prefer-stable": true
 }

@@ -2,14 +2,17 @@
 
 declare(strict_types=1);
 
+use TiborSrc\XaiSdkLaravel\Tests\TestCase;
 use TiborSrc\XaiSdkPhp\Http\HeaderBag;
 use TiborSrc\XaiSdkPhp\Http\HttpRequest;
 use TiborSrc\XaiSdkPhp\Http\HttpResponse;
 use TiborSrc\XaiSdkPhp\Http\StringSource;
-use TiborSrc\XaiSdkLaravel\Tests\TestCase;
 
-uses(TestCase::class)->in(__DIR__);
+pest()->extend(TestCase::class)->in(__DIR__);
 
+/**
+ * @return array<string, mixed>
+ */
 function completedResponse(): array
 {
     return [
@@ -54,6 +57,7 @@ function jsonResponse(mixed $body, int $status = 200): HttpResponse
 
 /**
  * @param  list<HttpRequest>  $requests
+ * @return Closure(HttpRequest): HttpResponse
  */
 function fakeFetch(array &$requests): Closure
 {
@@ -62,4 +66,52 @@ function fakeFetch(array &$requests): Closure
 
         return jsonResponse(completedResponse());
     };
+}
+
+/**
+ * @template T
+ *
+ * @param  callable(): T  $callback
+ * @return T
+ */
+function withApiKey(?string $key, callable $callback): mixed
+{
+    $snapshot = [
+        'getenv' => getenv('XAI_API_KEY'),
+        'env' => $_ENV['XAI_API_KEY'] ?? null,
+        'env_set' => array_key_exists('XAI_API_KEY', $_ENV),
+        'server' => $_SERVER['XAI_API_KEY'] ?? null,
+        'server_set' => array_key_exists('XAI_API_KEY', $_SERVER),
+    ];
+
+    if ($key === null) {
+        putenv('XAI_API_KEY');
+        unset($_ENV['XAI_API_KEY'], $_SERVER['XAI_API_KEY']);
+    } else {
+        putenv('XAI_API_KEY='.$key);
+        $_ENV['XAI_API_KEY'] = $key;
+        $_SERVER['XAI_API_KEY'] = $key;
+    }
+
+    try {
+        return $callback();
+    } finally {
+        if (is_string($snapshot['getenv']) && $snapshot['getenv'] !== '') {
+            putenv('XAI_API_KEY='.$snapshot['getenv']);
+        } else {
+            putenv('XAI_API_KEY');
+        }
+
+        if ($snapshot['env_set'] === true) {
+            $_ENV['XAI_API_KEY'] = $snapshot['env'];
+        } else {
+            unset($_ENV['XAI_API_KEY']);
+        }
+
+        if ($snapshot['server_set'] === true) {
+            $_SERVER['XAI_API_KEY'] = $snapshot['server'];
+        } else {
+            unset($_SERVER['XAI_API_KEY']);
+        }
+    }
 }

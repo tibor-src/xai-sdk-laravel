@@ -26,14 +26,14 @@ use TiborSrc\XaiSdkPhp\SpaceXAI;
 $client = app(SpaceXAI::class);
 
 $response = $client->responses->create([
-    'model' => 'grok-4.6',
-    'input' => 'Hello',
+    'model' => 'grok-4.7',
+    'input' => 'Explain why the sky is blue in one sentence.',
 ]);
 
 echo $response->toText();
 ```
 
-`store` defaults to `false`. When it is false, the client also sends `reasoning.encrypted_content` in `include`. A create call that omits `stream` is sent as a stream and returned as the finished response. Pass `'stream' => false` for one JSON response, or `'stream' => true` for a `ResponseStream`.
+The client sends `store` as `false` unless you opt in. That differs from the API wire default. With storage disabled, it requests encrypted reasoning content so `$response->toInput()` can preserve context between turns. A create call that omits `stream` is sent as a stream and returned as the finished response. Pass `'stream' => false` for one JSON response, or `'stream' => true` for a `ResponseStream`.
 
 `TiborSrc\XaiSdkLaravel\Facades\SpaceXAI` resolves the same container binding. Resources are public properties on the client, so call them on the resolved instance: `SpaceXAI::getFacadeRoot()->responses->create(...)`.
 
@@ -50,6 +50,14 @@ The binding is the PHP client. It exposes:
 - `voice` (`speak`, `transcribe`, `list`, `get`, `custom`, `clientSecrets`)
 - `tokenizer` (`encode`)
 - `account` (`apiKey`)
+
+## Tests
+
+```bash
+composer test
+```
+
+That runs Pint, PHPStan at the maximum level, Pest's type coverage at 100%, and the test suite. Tests mock the PHP client's HTTP layer and do not call the live API.
 
 ## License
 

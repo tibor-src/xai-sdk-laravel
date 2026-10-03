@@ -10,7 +10,7 @@ use TiborSrc\XaiSdkPhp\SpaceXAI as SpaceXAIClient;
 /**
  * @see SpaceXAIClient
  */
-class SpaceXAI extends Facade
+final class SpaceXAI extends Facade
 {
     protected static function getFacadeAccessor(): string
     {
