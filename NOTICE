@@ -1,0 +1,8 @@
+tibor-src/xai-sdk-laravel
+Unofficial Laravel package for the SpaceXAI PHP client
+
+This repository is not an official xAI or SpaceXAI package.
+It depends on tibor-src/xai-sdk-php.
+
+tibor-src/xai-sdk-php is an independent port of the experimental
+SpaceXAI TypeScript SDK and is not published or maintained by xAI.

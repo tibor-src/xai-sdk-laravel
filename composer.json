@@ -1,0 +1,48 @@
+{
+    "name": "tibor-src/xai-sdk-laravel",
+    "description": "Unofficial Laravel integration for tibor-src/xai-sdk-php.",
+    "type": "library",
+    "license": "Apache-2.0",
+    "keywords": ["laravel", "spacexai", "grok", "sdk", "php"],
+    "homepage": "https://github.com/tibor-src/xai-sdk-laravel",
+    "support": {
+        "issues": "https://github.com/tibor-src/xai-sdk-laravel/issues",
+        "source": "https://github.com/tibor-src/xai-sdk-laravel"
+    },
+    "require": {
+        "php": ">=8.2",
+        "illuminate/support": "^11.0 || ^12.0 || ^13.0",
+        "tibor-src/xai-sdk-php": "^0.2.1"
+    },
+    "require-dev": {
+        "orchestra/testbench": "^11.3",
+        "pestphp/pest": "^4.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "TiborSrc\\XaiSdkLaravel\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "TiborSrc\\XaiSdkLaravel\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "TiborSrc\\XaiSdkLaravel\\XaiSdkLaravelServiceProvider"
+            ]
+        }
+    },
+    "scripts": {
+        "test": "pest"
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    },
+    "minimum-stability": "stable"
+}
