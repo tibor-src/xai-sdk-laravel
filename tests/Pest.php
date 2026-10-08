@@ -59,13 +59,61 @@ function jsonResponse(mixed $body, int $status = 200): HttpResponse
  * @param  list<HttpRequest>  $requests
  * @return Closure(HttpRequest): HttpResponse
  */
-function fakeFetch(array &$requests): Closure
+function fakeFetch(array &$requests, mixed $body = null): Closure
 {
-    return function (HttpRequest $request) use (&$requests): HttpResponse {
+    return function (HttpRequest $request) use (&$requests, $body): HttpResponse {
         $requests[] = $request;
 
-        return jsonResponse(completedResponse());
+        return jsonResponse($body ?? completedResponse());
     };
+}
+
+/**
+ * @template T
+ *
+ * @param  callable(): T  $callback
+ * @return T
+ */
+function withEnv(string $name, ?string $value, callable $callback): mixed
+{
+    $snapshot = [
+        'getenv' => getenv($name),
+        'env' => $_ENV[$name] ?? null,
+        'env_set' => array_key_exists($name, $_ENV),
+        'server' => $_SERVER[$name] ?? null,
+        'server_set' => array_key_exists($name, $_SERVER),
+    ];
+
+    if ($value === null) {
+        putenv($name);
+        unset($_ENV[$name], $_SERVER[$name]);
+    } else {
+        putenv($name.'='.$value);
+        $_ENV[$name] = $value;
+        $_SERVER[$name] = $value;
+    }
+
+    try {
+        return $callback();
+    } finally {
+        if (is_string($snapshot['getenv']) && $snapshot['getenv'] !== '') {
+            putenv($name.'='.$snapshot['getenv']);
+        } else {
+            putenv($name);
+        }
+
+        if ($snapshot['env_set'] === true) {
+            $_ENV[$name] = $snapshot['env'];
+        } else {
+            unset($_ENV[$name]);
+        }
+
+        if ($snapshot['server_set'] === true) {
+            $_SERVER[$name] = $snapshot['server'];
+        } else {
+            unset($_SERVER[$name]);
+        }
+    }
 }
 
 /**
@@ -76,42 +124,5 @@ function fakeFetch(array &$requests): Closure
  */
 function withApiKey(?string $key, callable $callback): mixed
 {
-    $snapshot = [
-        'getenv' => getenv('XAI_API_KEY'),
-        'env' => $_ENV['XAI_API_KEY'] ?? null,
-        'env_set' => array_key_exists('XAI_API_KEY', $_ENV),
-        'server' => $_SERVER['XAI_API_KEY'] ?? null,
-        'server_set' => array_key_exists('XAI_API_KEY', $_SERVER),
-    ];
-
-    if ($key === null) {
-        putenv('XAI_API_KEY');
-        unset($_ENV['XAI_API_KEY'], $_SERVER['XAI_API_KEY']);
-    } else {
-        putenv('XAI_API_KEY='.$key);
-        $_ENV['XAI_API_KEY'] = $key;
-        $_SERVER['XAI_API_KEY'] = $key;
-    }
-
-    try {
-        return $callback();
-    } finally {
-        if (is_string($snapshot['getenv']) && $snapshot['getenv'] !== '') {
-            putenv('XAI_API_KEY='.$snapshot['getenv']);
-        } else {
-            putenv('XAI_API_KEY');
-        }
-
-        if ($snapshot['env_set'] === true) {
-            $_ENV['XAI_API_KEY'] = $snapshot['env'];
-        } else {
-            unset($_ENV['XAI_API_KEY']);
-        }
-
-        if ($snapshot['server_set'] === true) {
-            $_SERVER['XAI_API_KEY'] = $snapshot['server'];
-        } else {
-            unset($_SERVER['XAI_API_KEY']);
-        }
-    }
+    return withEnv('XAI_API_KEY', $key, $callback);
 }

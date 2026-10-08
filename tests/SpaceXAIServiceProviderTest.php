@@ -21,7 +21,8 @@ it('binds one SpaceXAI client from the published api key', function () {
         ->and($first->idleTimeout)->toBe(Transport::DEFAULT_IDLE_TIMEOUT_MS)
         ->and($first->maxRetries)->toBe(Transport::DEFAULT_MAX_RETRIES)
         ->and($first->retryBeforeOutput)->toBeFalse()
-        ->and($first->fetch)->toBe([Transport::class, 'curl']);
+        ->and($first->fetch)->toBe([Transport::class, 'curl'])
+        ->and(config('xai.service_tier'))->toBeNull();
 });
 
 it('forwards constructor options and leaves the live transport uncalled', function () {
@@ -181,7 +182,177 @@ it('publishes config that reads XAI_API_KEY', function () {
     $contents = file_get_contents($target);
     assert(is_string($contents));
 
-    expect($contents)->toContain("env('XAI_API_KEY')");
+    expect($contents)->toContain("env('XAI_API_KEY')")
+        ->and($contents)->toContain("env('XAI_SERVICE_TIER')");
 
     unlink($target);
+});
+
+it('reads XAI_SERVICE_TIER from the package config file', function () {
+    withEnv('XAI_SERVICE_TIER', 'fast', function () {
+        /** @var array<string, mixed> $config */
+        $config = require dirname(__DIR__).'/config/xai.php';
+
+        expect($config['service_tier'])->toBe('fast');
+    });
+});
+
+it('adds the configured service tier to responses without rewriting the body', function () {
+    /** @var list<HttpRequest> $requests */
+    $requests = [];
+    $body = completedResponse();
+    $body['service_tier'] = 'fast';
+
+    config([
+        'xai.service_tier' => '  fast  ',
+        'xai.fetch' => fakeFetch($requests, $body),
+    ]);
+
+    $response = $this->app->make(SpaceXAI::class)->responses->create([
+        'model' => 'grok-4.7',
+        'input' => 'Quote: "sky"',
+        'metadata' => (object) [],
+    ]);
+
+    $request = $requests[0] ?? null;
+    assert($request instanceof HttpRequest);
+    assert(is_string($request->body));
+
+    /** @var array<string, mixed> $payload */
+    $payload = $request->json();
+
+    expect($response->service_tier)->toBe('fast')
+        ->and($payload['service_tier'])->toBe('fast')
+        ->and($payload['input'])->toBe('Quote: "sky"')
+        ->and($payload['store'])->toBeFalse()
+        ->and($payload['stream'])->toBeTrue()
+        ->and($request->body)->toContain('"metadata":{}')
+        ->and($request->body)->toContain('"input":"Quote: \\"sky\\""')
+        ->and(substr_count($request->body, '"service_tier"'))->toBe(1);
+});
+
+it('keeps an explicit service tier on a custom base url', function () {
+    /** @var list<HttpRequest> $requests */
+    $requests = [];
+
+    config([
+        'xai.base_url' => 'https://example.test/v1/',
+        'xai.service_tier' => 'fast',
+        'xai.fetch' => fakeFetch($requests),
+    ]);
+
+    $this->app->make(SpaceXAI::class)->responses->create([
+        'model' => 'grok-4.7',
+        'input' => 'hi',
+        'service_tier' => 'priority',
+        'stream' => false,
+    ]);
+
+    $request = $requests[0] ?? null;
+    assert($request instanceof HttpRequest);
+
+    /** @var array<string, mixed> $payload */
+    $payload = $request->json();
+
+    expect($request->url)->toBe('https://example.test/v1/responses')
+        ->and($payload['service_tier'])->toBe('priority')
+        ->and(substr_count((string) $request->body, '"service_tier"'))->toBe(1);
+});
+
+it('ignores a blank or non string service tier', function () {
+    config(['xai.service_tier' => '']);
+
+    expect($this->app->make(SpaceXAI::class)->fetch)->toBe([Transport::class, 'curl']);
+
+    $this->app->forgetInstance(SpaceXAI::class);
+    config(['xai.service_tier' => false]);
+
+    expect($this->app->make(SpaceXAI::class)->fetch)->toBe([Transport::class, 'curl']);
+});
+
+it('does not add the configured service tier to response compaction', function () {
+    /** @var list<HttpRequest> $requests */
+    $requests = [];
+
+    config([
+        'xai.service_tier' => 'fast',
+        'xai.fetch' => fakeFetch($requests, [
+            'id' => 'cmp_1',
+            'output' => [],
+        ]),
+    ]);
+
+    $this->app->make(SpaceXAI::class)->responses->compact([
+        'model' => 'grok-4.7',
+        'input' => 'hi',
+    ]);
+
+    $request = $requests[0] ?? null;
+    assert($request instanceof HttpRequest);
+
+    /** @var array<string, mixed> $payload */
+    $payload = $request->json();
+
+    expect($request->url)->toBe('https://api.x.ai/v1/responses/compact')
+        ->and($payload)->not->toHaveKey('service_tier');
+});
+
+it('passes image upload urls through generate and edit', function () {
+    $uploadUrl = 'https://storage.example.com/lighthouse.jpg?X-Signature=abc123';
+    $image = [
+        'data' => [['url' => $uploadUrl, 'mime_type' => 'image/jpeg']],
+    ];
+    /** @var list<HttpRequest> $generatedRequests */
+    $generatedRequests = [];
+    /** @var list<HttpRequest> $editedRequests */
+    $editedRequests = [];
+
+    config([
+        'xai.fetch' => fakeFetch($generatedRequests, $image),
+    ]);
+
+    $generated = $this->app->make(SpaceXAI::class)->images->generate([
+        'model' => 'grok-imagine-image-2.0',
+        'prompt' => 'A lighthouse at dawn',
+        'output' => ['upload_urls' => [$uploadUrl]],
+    ]);
+
+    $generatedRequest = $generatedRequests[0] ?? null;
+    assert($generatedRequest instanceof HttpRequest);
+
+    /** @var array<string, mixed> $generatedPayload */
+    $generatedPayload = $generatedRequest->json();
+
+    $this->app->forgetInstance(SpaceXAI::class);
+
+    config([
+        'xai.service_tier' => 'fast',
+        'xai.fetch' => fakeFetch($editedRequests, $image),
+    ]);
+
+    $edited = $this->app->make(SpaceXAI::class)->images->edit([
+        'model' => 'grok-imagine-image-2.0',
+        'prompt' => 'Add a beam of light',
+        'image' => ['url' => 'https://example.com/source.png'],
+        'output' => ['upload_urls' => [$uploadUrl]],
+    ]);
+
+    $editedRequest = $editedRequests[0] ?? null;
+    assert($editedRequest instanceof HttpRequest);
+
+    /** @var array<string, mixed> $editedPayload */
+    $editedPayload = $editedRequest->json();
+
+    expect($generated->data[0]['url'])->toBe($uploadUrl)
+        ->and($generatedPayload)->toBe([
+            'model' => 'grok-imagine-image-2.0',
+            'prompt' => 'A lighthouse at dawn',
+            'output' => ['upload_urls' => [$uploadUrl]],
+        ])
+        ->and($generatedRequest->url)->toBe('https://api.x.ai/v1/images/generations')
+        ->and($edited->data[0]['url'])->toBe($uploadUrl)
+        ->and($editedPayload['output'])->toBe(['upload_urls' => [$uploadUrl]])
+        ->and($editedPayload['image'])->toBe(['url' => 'https://example.com/source.png'])
+        ->and($editedPayload)->not->toHaveKey('service_tier')
+        ->and($editedRequest->url)->toBe('https://api.x.ai/v1/images/edits');
 });

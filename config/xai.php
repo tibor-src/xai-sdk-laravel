@@ -22,4 +22,7 @@ return [
 
     'default_headers' => [],
 
+    // Null omits service_tier. "fast" and "priority" are interchangeable.
+    'service_tier' => env('XAI_SERVICE_TIER'),
+
 ];

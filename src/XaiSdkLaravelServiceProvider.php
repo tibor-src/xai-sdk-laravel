@@ -8,7 +8,11 @@ use Closure;
 use Illuminate\Contracts\Config\Repository;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Support\ServiceProvider;
+use TiborSrc\XaiSdkPhp\Http\HttpRequest;
+use TiborSrc\XaiSdkPhp\Http\HttpResponse;
+use TiborSrc\XaiSdkPhp\Json;
 use TiborSrc\XaiSdkPhp\SpaceXAI;
+use TiborSrc\XaiSdkPhp\Transport;
 use UnexpectedValueException;
 
 final class XaiSdkLaravelServiceProvider extends ServiceProvider
@@ -108,7 +112,93 @@ final class XaiSdkLaravelServiceProvider extends ServiceProvider
             }
         }
 
+        $serviceTier = self::serviceTierOption($config['service_tier'] ?? null);
+
+        if ($serviceTier !== null) {
+            $fetch = $options['fetch'] ?? [Transport::class, 'curl'];
+            $options['fetch'] = static function (HttpRequest $request) use ($fetch, $serviceTier): HttpResponse {
+                return self::invokeFetch($fetch, self::withDefaultServiceTier($request, $serviceTier));
+            };
+        }
+
         return $options;
+    }
+
+    private static function serviceTierOption(mixed $value): ?string
+    {
+        if (! is_string($value)) {
+            return null;
+        }
+
+        $tier = trim($value);
+
+        return $tier === '' ? null : $tier;
+    }
+
+    private static function invokeFetch(mixed $fetch, HttpRequest $request): HttpResponse
+    {
+        if (! is_callable($fetch)) {
+            throw new UnexpectedValueException('The [xai.fetch] callback must be callable.');
+        }
+
+        $response = $fetch($request);
+
+        if (! $response instanceof HttpResponse) {
+            throw new UnexpectedValueException('The [xai.fetch] callback must return an HTTP response.');
+        }
+
+        return $response;
+    }
+
+    private static function withDefaultServiceTier(HttpRequest $request, string $serviceTier): HttpRequest
+    {
+        if ($request->method !== 'POST' || ! is_string($request->body) || ! self::isResponsesCreateUrl($request->url)) {
+            return $request;
+        }
+
+        $payload = Json::decode($request->body);
+
+        if (! is_array($payload) || array_is_list($payload) || array_key_exists('service_tier', $payload)) {
+            return $request;
+        }
+
+        $body = self::appendJsonField($request->body, 'service_tier', $serviceTier);
+
+        if ($body === null) {
+            return $request;
+        }
+
+        return new HttpRequest(
+            $request->method,
+            $request->url,
+            $request->headers->clone(),
+            $body,
+            $request->signal,
+        );
+    }
+
+    private static function isResponsesCreateUrl(string $url): bool
+    {
+        $path = parse_url($url, PHP_URL_PATH);
+
+        return is_string($path) && str_ends_with(rtrim($path, '/'), '/responses');
+    }
+
+    /**
+     * Inserts one field into a JSON object without re-encoding the rest of the body.
+     */
+    private static function appendJsonField(string $json, string $field, string $value): ?string
+    {
+        $trimmed = rtrim($json);
+
+        if (! str_ends_with($trimmed, '}')) {
+            return null;
+        }
+
+        $prefix = substr($trimmed, 0, -1);
+        $separator = trim($prefix) === '{' ? '' : ',';
+
+        return $prefix.$separator.Json::encode($field).':'.Json::encode($value).'}';
     }
 
     private static function integerOption(mixed $value): ?int

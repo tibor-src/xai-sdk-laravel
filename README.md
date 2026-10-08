@@ -1,6 +1,6 @@
 # tibor-src/xai-sdk-laravel
 
-Unofficial Laravel package for [tibor-src/xai-sdk-php](https://github.com/tibor-src/xai-sdk-php).
+Unofficial Laravel package for [tibor-src/xai-sdk-php](https://github.com/tibor-src/xai-sdk-php). Release 0.2.3 requires that PHP client at 0.2.3 or newer.
 
 This package is not published or maintained by xAI. It registers that PHP client's `SpaceXAI` class in the Laravel container. Request and response behavior comes from `tibor-src/xai-sdk-php`.
 
@@ -16,7 +16,9 @@ Requires PHP 8.2 or newer. Set `XAI_API_KEY` in the environment, then publish th
 php artisan vendor:publish --tag=xai-config
 ```
 
-The published `config/xai.php` reads `XAI_API_KEY`. Leave the other values `null` to keep the PHP client's defaults.
+The published `config/xai.php` reads `XAI_API_KEY` and `XAI_SERVICE_TIER`. Leave the other values `null` to keep the PHP client's defaults.
+
+`XAI_SERVICE_TIER` sets the default `service_tier` on Responses API calls. Use `auto`, `priority`, or `fast`. `fast` and `priority` are interchangeable: on a model with a fast deployment both use that deployment, and otherwise both raise scheduling priority. Leave the variable empty to omit `service_tier`. A `service_tier` key on an individual `responses->create()` call replaces the configured value. A custom `fetch` callback receives the Responses request after that default is applied. Image, video, and other resources are left unchanged.
 
 ## Usage
 
@@ -36,6 +38,22 @@ echo $response->toText();
 The client sends `store` as `false` unless you opt in. That differs from the API wire default. With storage disabled, it requests encrypted reasoning content so `$response->toInput()` can preserve context between turns. A create call that omits `stream` is sent as a stream and returned as the finished response. Pass `'stream' => false` for one JSON response, or `'stream' => true` for a `ResponseStream`.
 
 `TiborSrc\XaiSdkLaravel\Facades\SpaceXAI` resolves the same container binding. Resources are public properties on the client, so call them on the resolved instance: `SpaceXAI::getFacadeRoot()->responses->create(...)`.
+
+`images->generate()` and `images->edit()` pass `output.upload_urls` through to the PHP client. Provide one signed URL per image. Each URL must accept an HTTP `PUT`. The matching result `url` is that upload URL. Uploads need the default `response_format` of `url`:
+
+```php
+$result = $client->images->generate([
+    'model' => 'grok-imagine-image-2.0',
+    'prompt' => 'A lighthouse at dawn',
+    'output' => [
+        'upload_urls' => [
+            'https://storage.example.com/lighthouse.jpg?signature=...',
+        ],
+    ],
+]);
+
+echo $result->data[0]['url'] ?? '';
+```
 
 ## Resources
 
