@@ -3,18 +3,23 @@
 declare(strict_types=1);
 
 use TiborSrc\XaiSdkLaravel\Facades\SpaceXAI as SpaceXAIFacade;
+use TiborSrc\XaiSdkLaravel\Facades\SpaceXSI as SpaceXSIFacade;
 use TiborSrc\XaiSdkPhp\Credentials;
 use TiborSrc\XaiSdkPhp\Http\HttpRequest;
 use TiborSrc\XaiSdkPhp\ModelResponse;
 use TiborSrc\XaiSdkPhp\SpaceXAI;
+use TiborSrc\XaiSdkPhp\SpaceXSI;
 use TiborSrc\XaiSdkPhp\Transport;
 
-it('binds one SpaceXAI client from the published api key', function () {
-    $first = $this->app->make(SpaceXAI::class);
-    $second = $this->app->make(SpaceXAI::class);
+it('binds one SpaceXSI client and keeps SpaceXAI as the same instance', function () {
+    $first = $this->app->make(SpaceXSI::class);
+    $second = $this->app->make(SpaceXSI::class);
+    $alias = $this->app->make(SpaceXAI::class);
 
-    expect($first)->toBeInstanceOf(SpaceXAI::class)
+    expect($first)->toBeInstanceOf(SpaceXSI::class)
+        ->and($first)->toBeInstanceOf(SpaceXAI::class)
         ->and($second)->toBe($first)
+        ->and($alias)->toBe($first)
         ->and(Credentials::get($first))->toBe('test-key')
         ->and($first->baseURL)->toBe(Transport::DEFAULT_BASE_URL)
         ->and($first->timeout)->toBe(Transport::DEFAULT_TIMEOUT_MS)
@@ -42,7 +47,7 @@ it('forwards constructor options and leaves the live transport uncalled', functi
         },
     ]);
 
-    $client = $this->app->make(SpaceXAI::class);
+    $client = $this->app->make(SpaceXSI::class);
 
     expect($called)->toBeFalse()
         ->and($client->baseURL)->toBe('https://example.test/v1')
@@ -54,6 +59,31 @@ it('forwards constructor options and leaves the live transport uncalled', functi
         ->and($client->defaultHeaders)->toBe(['x-test-source' => 'laravel']);
 });
 
+it('caps a timeout of 0 or past 24 hours at 24 hours', function () {
+    config([
+        'xai.timeout' => 0,
+        'xai.idle_timeout' => '-1',
+    ]);
+
+    $zero = $this->app->make(SpaceXSI::class);
+
+    expect($zero->timeout)->toBe(Transport::MAX_TIMEOUT_MS)
+        ->and($zero->idleTimeout)->toBe(Transport::MAX_TIMEOUT_MS);
+
+    $this->app->forgetInstance(SpaceXSI::class);
+
+    config([
+        'xai.timeout' => '999999999999',
+        'xai.idle_timeout' => 86_400_001,
+    ]);
+
+    $capped = $this->app->make(SpaceXSI::class);
+
+    expect($capped)->not->toBe($zero)
+        ->and($capped->timeout)->toBe(Transport::MAX_TIMEOUT_MS)
+        ->and($capped->idleTimeout)->toBe(Transport::MAX_TIMEOUT_MS);
+});
+
 it('treats the string false as disabled retry and ignores a non numeric timeout', function () {
     config([
         'xai.timeout' => 'soon',
@@ -62,7 +92,7 @@ it('treats the string false as disabled retry and ignores a non numeric timeout'
         'xai.fetch' => 'strlen',
     ]);
 
-    $client = $this->app->make(SpaceXAI::class);
+    $client = $this->app->make(SpaceXSI::class);
 
     expect($client->timeout)->toBe(Transport::DEFAULT_TIMEOUT_MS)
         ->and($client->retryBeforeOutput)->toBeFalse()
@@ -74,7 +104,7 @@ it('reads XAI_API_KEY when the config value is empty', function () {
     config(['xai.api_key' => null]);
 
     withApiKey('env-key', function () {
-        expect(Credentials::get($this->app->make(SpaceXAI::class)))->toBe('env-key');
+        expect(Credentials::get($this->app->make(SpaceXSI::class)))->toBe('env-key');
     });
 });
 
@@ -91,8 +121,8 @@ it('refuses to build a client when the api key is missing', function () {
     ]);
 
     withApiKey(null, function () use (&$called) {
-        expect(fn () => $this->app->make(SpaceXAI::class))
-            ->toThrow(RuntimeException::class, 'SpaceXAI: apiKey is missing (set XAI_API_KEY or pass apiKey)');
+        expect(fn () => $this->app->make(SpaceXSI::class))
+            ->toThrow(RuntimeException::class, 'SpaceXSI: apiKey is missing (set XAI_API_KEY or pass apiKey)');
         expect($called)->toBeFalse();
     });
 });
@@ -100,12 +130,12 @@ it('refuses to build a client when the api key is missing', function () {
 it('rejects config that is not a string keyed array', function () {
     config(['xai' => 'test-key']);
 
-    expect(fn () => $this->app->make(SpaceXAI::class))
+    expect(fn () => $this->app->make(SpaceXSI::class))
         ->toThrow(UnexpectedValueException::class, 'The [xai] config must be an array.');
 
     config(['xai' => ['api_key' => 'test-key', 0 => 'bad']]);
 
-    expect(fn () => $this->app->make(SpaceXAI::class))
+    expect(fn () => $this->app->make(SpaceXSI::class))
         ->toThrow(UnexpectedValueException::class, 'The [xai] config keys must be strings.');
 });
 
@@ -115,7 +145,7 @@ it('creates a response through the mocked client and defaults store to false', f
 
     config(['xai.fetch' => fakeFetch($requests)]);
 
-    $response = $this->app->make(SpaceXAI::class)->responses->create([
+    $response = $this->app->make(SpaceXSI::class)->responses->create([
         'model' => 'grok-4.7',
         'input' => 'Explain why the sky is blue in one sentence.',
     ]);
@@ -143,7 +173,8 @@ it('resolves the facade to the same mocked client', function () {
 
     config(['xai.fetch' => fakeFetch($requests)]);
 
-    $resolved = SpaceXAIFacade::getFacadeRoot();
+    $resolved = SpaceXSIFacade::getFacadeRoot();
+    assert($resolved instanceof SpaceXSI);
     assert($resolved instanceof SpaceXAI);
 
     $response = $resolved->responses->create([
@@ -161,7 +192,8 @@ it('resolves the facade to the same mocked client', function () {
 
     expect($response)->toBeInstanceOf(ModelResponse::class)
         ->and($response->toText())->toBe('Hello world')
-        ->and(SpaceXAIFacade::getFacadeRoot())->toBe($this->app->make(SpaceXAI::class))
+        ->and(SpaceXSIFacade::getFacadeRoot())->toBe($this->app->make(SpaceXSI::class))
+        ->and(SpaceXAIFacade::getFacadeRoot())->toBe($resolved)
         ->and($payload['store'])->toBeTrue()
         ->and($payload)->not->toHaveKey('include');
 });
@@ -181,7 +213,9 @@ it('publishes config that reads XAI_API_KEY', function () {
     $contents = file_get_contents($target);
     assert(is_string($contents));
 
-    expect($contents)->toContain("env('XAI_API_KEY')");
+    expect($contents)->toContain("env('XAI_API_KEY')")
+        ->and($contents)->toContain('SpaceXSI')
+        ->and($contents)->toContain('24 hours');
 
     unlink($target);
 });

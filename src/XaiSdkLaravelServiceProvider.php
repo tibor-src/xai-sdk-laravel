@@ -9,6 +9,7 @@ use Illuminate\Contracts\Config\Repository;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Support\ServiceProvider;
 use TiborSrc\XaiSdkPhp\SpaceXAI;
+use TiborSrc\XaiSdkPhp\SpaceXSI;
 use UnexpectedValueException;
 
 final class XaiSdkLaravelServiceProvider extends ServiceProvider
@@ -17,9 +18,12 @@ final class XaiSdkLaravelServiceProvider extends ServiceProvider
     {
         $this->mergeConfigFrom(dirname(__DIR__).'/config/xai.php', 'xai');
 
-        $this->app->singleton(SpaceXAI::class, static function (Application $app): SpaceXAI {
-            return new SpaceXAI(self::clientOptions(self::config($app)));
+        $this->app->singleton(SpaceXSI::class, static function (Application $app): SpaceXSI {
+            return new SpaceXSI(self::clientOptions(self::config($app)));
         });
+
+        // SpaceXAI is a deprecated alias of SpaceXSI. The two names are different container keys.
+        $this->app->alias(SpaceXSI::class, SpaceXAI::class);
     }
 
     public function boot(): void

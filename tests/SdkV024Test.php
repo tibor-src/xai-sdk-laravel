@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 use TiborSrc\XaiSdkPhp\Http\HttpRequest;
 use TiborSrc\XaiSdkPhp\Http\HttpResponse;
-use TiborSrc\XaiSdkPhp\SpaceXAI;
+use TiborSrc\XaiSdkPhp\SpaceXSI;
 
 use function TiborSrc\XaiSdkPhp\webSearch;
 use function TiborSrc\XaiSdkPhp\xSearch;
 
-it('loads the realtime voice model ids from xai-sdk-php 0.2.4', function () {
-    expect(version_compare(\TiborSrc\XaiSdkPhp\SDK_VERSION, '0.2.4', '>='))->toBeTrue()
+it('loads the realtime voice model ids from xai-sdk-php 0.2.8', function () {
+    expect(version_compare(\TiborSrc\XaiSdkPhp\SDK_VERSION, '0.2.8', '>='))->toBeTrue()
         ->and(version_compare(\TiborSrc\XaiSdkPhp\SDK_VERSION, '0.3.0', '<'))->toBeTrue()
         ->and(\TiborSrc\XaiSdkPhp\KNOWN_REALTIME_MODEL_IDS)->toBe([
             'grok-voice-latest',
@@ -24,13 +24,15 @@ it('posts guidelines and the web and x search tools through the laravel client',
     /** @var list<HttpRequest> $requests */
     $requests = [];
     $guidelines = [
+        ['type' => 'policy', 'category' => 'nsfw', 'behavior' => 'decline'],
         ['type' => 'policy', 'category' => 'violence', 'behavior' => 'decline'],
-        ['type' => 'policy', 'category' => 'self_harm', 'behavior' => 'offer_support'],
+        ['type' => 'policy', 'category' => 'profanity', 'behavior' => 'decline'],
+        ['type' => 'policy', 'category' => 'cyber', 'behavior' => 'allow'],
     ];
 
     config(['xai.fetch' => fetchJson($requests, completedResponse())]);
 
-    $this->app->make(SpaceXAI::class)->responses->create([
+    $this->app->make(SpaceXSI::class)->responses->create([
         'model' => 'grok-4.7',
         'input' => 'Hello',
         'guidelines' => $guidelines,
@@ -59,7 +61,7 @@ it('posts the 21:9 and 5:2 video aspect ratios through the laravel client', func
 
     config(['xai.fetch' => fetchJson($requests, ['request_id' => 'req_1'])]);
 
-    $client = $this->app->make(SpaceXAI::class);
+    $client = $this->app->make(SpaceXSI::class);
     $ultrawide = ['model' => 'grok-imagine-video-1.5', 'prompt' => 'A desert road', 'aspect_ratio' => '21:9'];
     $panoramic = ['model' => 'grok-imagine-video-1.5', 'prompt' => 'A desert road', 'aspect_ratio' => '5:2'];
     $client->videos->generate($ultrawide);
@@ -77,7 +79,7 @@ it('posts grok-voice-3.0 and grok-voice-2.0 on a client secret session', functio
 
     config(['xai.fetch' => fetchJson($requests, ['value' => 'secret', 'expires_at' => 1])]);
 
-    $client = $this->app->make(SpaceXAI::class);
+    $client = $this->app->make(SpaceXSI::class);
     $client->voice->clientSecrets->create(['session' => ['model' => 'grok-voice-3.0']]);
     $client->voice->clientSecrets->create(['session' => ['model' => 'grok-voice-2.0']]);
 

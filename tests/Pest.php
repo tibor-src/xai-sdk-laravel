@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use TiborSrc\XaiSdkLaravel\Tests\TestCase;
+use TiborSrc\XaiSdkPhp\Http\FormData;
 use TiborSrc\XaiSdkPhp\Http\HeaderBag;
 use TiborSrc\XaiSdkPhp\Http\HttpRequest;
 use TiborSrc\XaiSdkPhp\Http\HttpResponse;
@@ -40,7 +41,10 @@ function completedResponse(): array
     ];
 }
 
-function jsonResponse(mixed $body, int $status = 200): HttpResponse
+/**
+ * @param  array<string, string>  $headers
+ */
+function jsonResponse(mixed $body, int $status = 200, array $headers = []): HttpResponse
 {
     $encoded = json_encode($body, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
 
@@ -49,10 +53,49 @@ function jsonResponse(mixed $body, int $status = 200): HttpResponse
         HeaderBag::from([
             'content-type' => 'application/json',
             'x-request-id' => 'req_test',
+            ...$headers,
         ]),
         '',
         new StringSource($encoded),
     );
+}
+
+/**
+ * @param  list<array<string, mixed>>  $events
+ * @param  array<string, string>  $headers
+ */
+function sseResponse(array $events, array $headers = []): HttpResponse
+{
+    $raw = '';
+
+    foreach ($events as $event) {
+        $encoded = json_encode($event, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
+        $raw .= 'data: '.$encoded."\n\n";
+    }
+
+    $raw .= "data: [DONE]\n\n";
+
+    return new HttpResponse(
+        200,
+        HeaderBag::from([
+            'content-type' => 'text/event-stream',
+            'x-request-id' => 'req_test',
+            ...$headers,
+        ]),
+        '',
+        new StringSource($raw),
+    );
+}
+
+function formFilename(mixed $body): string
+{
+    expect($body)->toBeInstanceOf(FormData::class);
+    assert($body instanceof FormData);
+    expect($body->body())->toMatch('/filename="([^"]*)"/');
+    preg_match('/filename="([^"]*)"/', $body->body(), $match);
+    assert(isset($match[1]) && is_string($match[1]));
+
+    return $match[1];
 }
 
 /**
