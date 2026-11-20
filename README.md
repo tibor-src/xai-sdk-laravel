@@ -10,7 +10,7 @@ This package is not published or maintained by xAI. It registers that PHP client
 composer require tibor-src/xai-sdk-laravel
 ```
 
-Requires PHP 8.2 or newer and `tibor-src/xai-sdk-php` 0.2.8 or newer. Set `XAI_API_KEY` in the environment, then publish the config if you want to override the client's constructor options:
+Requires PHP 8.2 or newer and `tibor-src/xai-sdk-php` 0.2.9 or newer. Set `XAI_API_KEY` in the environment, then publish the config if you want to override the client's constructor options:
 
 ```bash
 php artisan vendor:publish --tag=xai-config
@@ -54,6 +54,22 @@ The binding is the PHP client. It exposes:
 - `voice` (`speak`, `transcribe`, `list`, `get`, `custom`, `clientSecrets`)
 - `tokenizer` (`encode`)
 - `account` (`apiKey`)
+
+## xai-sdk-php 0.2.9
+
+The resolved client uses `tibor-src/xai-sdk-php` 0.2.9. Config, the facades, and the service provider are unchanged.
+
+- Streamed responses keep one event's `event:` and `data:` lines together when the server ends lines with `\r\n`, including when a chunk splits that line break. `\r` followed by `\r\n`, and `\n` followed by `\r\n`, still end an event. Bare `\r` and `\n` line endings are unchanged.
+- `TiborSrc\XaiSdkPhp\KNOWN_IMAGE_MODEL_IDS` lists `grok-imagine-image` and `grok-imagine-image-2.0`. `grok-imagine-image-quality` was retired on November 2, 2026. `images->generate()` still sends whatever model id you pass. Use `grok-imagine-image-2.0` for new work.
+
+```php
+use TiborSrc\XaiSdkPhp\SpaceXSI;
+
+$image = app(SpaceXSI::class)->images->generate([
+    'model' => 'grok-imagine-image-2.0',
+    'prompt' => 'A red cube on a white table',
+]);
+```
 
 ## xai-sdk-php 0.2.8
 

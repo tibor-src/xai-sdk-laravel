@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.2.9] - 2026-11-20
+
+Require `tibor-src/xai-sdk-php` `^0.2.9`, in line with `@xai-official/sdk` 0.2.9. The previous Laravel release (`v0.2.8`) allowed `^0.2.8`.
+
+Config, the facades, and the service provider are unchanged. `xai-sdk-php` 0.2.9 adds no constructor options. These 0.2.9 behaviors are available on the resolved client:
+
+- A streamed response keeps the fields of one SSE event together when the server ends lines with `\r\n`. A single `\r\n` is a line break, including when a chunk splits that `\r\n`. `\r` followed by `\r\n`, and `\n` followed by `\r\n`, still end an event. Bare `\r` and `\n` line endings are unchanged.
+- `KNOWN_IMAGE_MODEL_IDS` lists `grok-imagine-image` and `grok-imagine-image-2.0`. `grok-imagine-image-quality` was retired on November 2, 2026 and is no longer in that list. Any other string is still accepted as an image model id. Use `grok-imagine-image-2.0` for new work.
+
+Not part of the Laravel layer:
+
+- The SSE parser and `KNOWN_IMAGE_MODEL_IDS` live in `xai-sdk-php`. This package does not parse event streams and does not keep its own model list.
+- This package has no validation rules. `images->generate()` forwards the model id as given, including an id that is no longer in the known list.
+- `KnownImageModelId` is a TypeScript union. The PHP client accepts any string at runtime, and the Laravel binding does the same.
+
 ## [0.2.8] - 2026-11-04
 
 Require `tibor-src/xai-sdk-php` `^0.2.8`, in line with `@xai-official/sdk` 0.2.5 through 0.2.8. The previous Laravel release (`v0.2.4`) allowed `^0.2.4`.
