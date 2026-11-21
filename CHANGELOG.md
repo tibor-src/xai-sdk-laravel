@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.2.10] - 2026-11-21
+
+Require `tibor-src/xai-sdk-php` `^0.2.10`, in line with `@xai-official/sdk` 0.2.10. The previous Laravel release (`v0.2.9`) allowed `^0.2.9`.
+
+Config, the facades, and the service provider are unchanged. `xai-sdk-php` 0.2.10 adds no constructor options. These 0.2.10 behaviors are available on the resolved client:
+
+- A request sends `user-agent: xai-sdk/0.2.10 (php)` unless `default_headers` already sets `user-agent`.
+- `xai-sdk-version` is `php/0.2.10` on every request. A value set in `default_headers` is replaced with that.
+
+Not part of the Laravel layer:
+
+- `SDK_VERSION` lives in `xai-sdk-php`. This package does not set the version string.
+- The npm package `@grok/sdk`, its release workflow, artifact rename, and package smoke under both names are specific to the TypeScript release. This package is the Composer package `tibor-src/xai-sdk-laravel`.
+- The Node.js version error no longer names the package. This package has no runtime version error. Composer enforces `php: ^8.2.0` before the library loads.
+
 ## [0.2.9] - 2026-11-20
 
 Require `tibor-src/xai-sdk-php` `^0.2.9`, in line with `@xai-official/sdk` 0.2.9. The previous Laravel release (`v0.2.8`) allowed `^0.2.8`.

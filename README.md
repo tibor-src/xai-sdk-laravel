@@ -10,7 +10,7 @@ This package is not published or maintained by xAI. It registers that PHP client
 composer require tibor-src/xai-sdk-laravel
 ```
 
-Requires PHP 8.2 or newer and `tibor-src/xai-sdk-php` 0.2.9 or newer. Set `XAI_API_KEY` in the environment, then publish the config if you want to override the client's constructor options:
+Requires PHP 8.2 or newer and `tibor-src/xai-sdk-php` 0.2.10 or newer. Set `XAI_API_KEY` in the environment, then publish the config if you want to override the client's constructor options:
 
 ```bash
 php artisan vendor:publish --tag=xai-config
@@ -54,6 +54,13 @@ The binding is the PHP client. It exposes:
 - `voice` (`speak`, `transcribe`, `list`, `get`, `custom`, `clientSecrets`)
 - `tokenizer` (`encode`)
 - `account` (`apiKey`)
+
+## xai-sdk-php 0.2.10
+
+The resolved client uses `tibor-src/xai-sdk-php` 0.2.10. Config, the facades, and the service provider are unchanged.
+
+- A request sends `user-agent: xai-sdk/0.2.10 (php)` unless `default_headers` already sets `user-agent`.
+- `xai-sdk-version` is `php/0.2.10` on every request. A value set in `default_headers` is replaced with that.
 
 ## xai-sdk-php 0.2.9
 
