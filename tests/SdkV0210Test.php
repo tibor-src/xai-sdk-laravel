@@ -9,7 +9,7 @@ use TiborSrc\XaiSdkPhp\SpaceXSI;
 it('loads xai-sdk-php 0.2.10', function () {
     expect(version_compare(\TiborSrc\XaiSdkPhp\SDK_VERSION, '0.2.10', '>='))->toBeTrue()
         ->and(version_compare(\TiborSrc\XaiSdkPhp\SDK_VERSION, '0.3.0', '<'))->toBeTrue()
-        ->and(\TiborSrc\XaiSdkPhp\SDK_USER_AGENT)->toBe('xai-sdk/0.2.10 (php)');
+        ->and(\TiborSrc\XaiSdkPhp\SDK_USER_AGENT)->toBe('xai-sdk/'.\TiborSrc\XaiSdkPhp\SDK_VERSION.' (php)');
 });
 
 it('sends the 0.2.10 sdk headers from the resolved client', function () {
@@ -32,8 +32,8 @@ it('sends the 0.2.10 sdk headers from the resolved client', function () {
     assert($request instanceof HttpRequest);
 
     expect($requests)->toHaveCount(1)
-        ->and($request->headers->get('user-agent'))->toBe('xai-sdk/0.2.10 (php)')
-        ->and($request->headers->get('xai-sdk-version'))->toBe('php/0.2.10');
+        ->and($request->headers->get('user-agent'))->toBe(\TiborSrc\XaiSdkPhp\SDK_USER_AGENT)
+        ->and($request->headers->get('xai-sdk-version'))->toBe('php/'.\TiborSrc\XaiSdkPhp\SDK_VERSION);
 });
 
 it('keeps a configured user agent and still stamps the php sdk version', function () {
@@ -63,5 +63,5 @@ it('keeps a configured user agent and still stamps the php sdk version', functio
 
     expect($requests)->toHaveCount(1)
         ->and($request->headers->get('user-agent'))->toBe('curl/8')
-        ->and($request->headers->get('xai-sdk-version'))->toBe('php/0.2.10');
+        ->and($request->headers->get('xai-sdk-version'))->toBe('php/'.\TiborSrc\XaiSdkPhp\SDK_VERSION);
 });

@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.2.11.1] - 2026-11-26
+
+Require `tibor-src/xai-sdk-php` `^0.2.11.1`, in line with `@xai-official/sdk` 0.2.11. Packagist locked published `0.2.11` to the v0.2.10 commit, so this package requires the 0.2.11.1 subversion (the installable 0.2.11 port). The previous Laravel release (`v0.2.10`) allowed `^0.2.10`. `^0.2.11` is not used because it would allow that locked Packagist 0.2.11.
+
+Config, the facades, and the service provider are unchanged. `xai-sdk-php` 0.2.11.1 adds no constructor options. These 0.2.11 behaviors are available on the resolved client:
+
+- A request sends `user-agent: xai-sdk/0.2.11.1 (php)` unless `default_headers` already sets `user-agent`.
+- `xai-sdk-version` is `php/0.2.11.1` on every request. A value set in `default_headers` is replaced with that.
+- `voice->transcribe()` takes `redact` and `show_redacted_text`. `redact` is a list of groups (`pii`, `pci`, `phi`) or single types such as `ssn`, each sent as its own `redact` field. With `show_redacted_text` set to `true`, each redacted word has the original words in `redacted_text`. `KNOWN_TRANSCRIPTION_REDACTIONS` lists the groups this release names.
+- `KNOWN_MODEL_IDS` no longer lists `grok-build-0.1`. It reached end of life on November 19, 2026. Any other string is still accepted as a model id.
+- Resource methods that take an id (`files`, `batches`, `models`, `responses`, `videos`, and `voice`) throw a `TypeError` for an empty id, `"."`, or `".."` instead of sending the request.
+- `responses->create()` without `stream`, and `$stream->done()` on a streaming response, return the completed response when the connection fails or is held open after the terminal event (`response.completed`, `response.failed`, or `response.incomplete`). Later events are not delivered.
+
+Not part of the Laravel layer:
+
+- `SDK_VERSION` lives in `xai-sdk-php`. This package does not set the version string. It is `0.2.11.1` so the installable port is distinct from Packagist's locked 0.2.11.
+- Path-parameter validation, transcription redaction encoding, stream tail drain, `KNOWN_MODEL_IDS`, and `KNOWN_TRANSCRIPTION_REDACTIONS` live in `xai-sdk-php`. This package does not parse paths, form fields, or event streams and does not keep its own model list.
+- The TypeScript release also stops request timeout and idle timers from keeping a Node.js process alive (`unref()`). PHP has no event loop, and curl timeouts do not keep a CLI process running after a request fails, so that change does not apply here.
+
 ## [0.2.10] - 2026-11-21
 
 Require `tibor-src/xai-sdk-php` `^0.2.10`, in line with `@xai-official/sdk` 0.2.10. The previous Laravel release (`v0.2.9`) allowed `^0.2.9`.

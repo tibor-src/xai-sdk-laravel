@@ -12,9 +12,10 @@ use TiborSrc\XaiSdkPhp\Http\StringSource;
 pest()->extend(TestCase::class)->in(__DIR__);
 
 /**
+ * @param  array<string, mixed>  $extra
  * @return array<string, mixed>
  */
-function completedResponse(): array
+function completedResponse(array $extra = []): array
 {
     return [
         'id' => 'resp_123',
@@ -38,6 +39,7 @@ function completedResponse(): array
             'output_tokens' => 9,
             'total_tokens' => 41,
         ],
+        ...$extra,
     ];
 }
 
